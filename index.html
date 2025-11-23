@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Parity Deduction Game</title>
+
+  <!-- anime.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" defer></script>
+
+  <style>
+    :root{
+      --bg: #ffffff;
+      --text: #111827;        /* neutral-900 */
+      --muted: #6b7280;       /* gray-500 */
+      --primary: #3b82f6;     /* blue-500 */
+      --primary-600: #2563eb; /* blue-600 */
+      --accent: #10b981;      /* emerald-500 */
+      --danger: #ef4444;      /* red-500 */
+      --card: #f9fafb;        /* gray-50 */
+      --border: #e5e7eb;      /* gray-200 */
+      --shadow: 0 8px 30px rgba(0,0,0,0.06);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      line-height: 1.5;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      padding: clamp(16px, 3vw, 24px);
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .title h1 {
+      margin: 0;
+      font-weight: 700;
+      font-size: clamp(20px, 2.4vw, 28px);
+      letter-spacing: -0.02em;
+    }
+    .title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(12px, 1.8vw, 14px);
+    }
+
+    .status {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    main {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(14px, 2.5vw, 20px);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: clamp(16px, 2vw, 20px);
+    }
+
+    /* Grid of 1–6 */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 680px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 420px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .cell {
+      position: relative;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 0;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    .cell:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.06);
+    }
+    .cell.selected {
+      border-color: var(--primary);
+      box-shadow: 0 8px 22px rgba(59,130,246,0.18);
+    }
+    .cell.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .num {
+      font-weight: 700;
+      font-size: clamp(18px, 2.6vw, 22px);
+      letter-spacing: 0.02em;
+    }
+    .sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--primary);
+      cursor: pointer;
+      transition: transform .1s ease, filter .12s ease, box-shadow .12s ease;
+      box-shadow: 0 6px 16px rgba(59,130,246,0.25);
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn:active { transform: translateY(1px) scale(0.995); }
+    .btn.secondary {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+    .btn.danger {
+      background: var(--danger);
+      box-shadow: 0 6px 16px rgba(239,68,68,0.25);
+    }
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .parity-card {
+      position: relative;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .parity-value {
+      font-weight: 800;
+      font-size: clamp(18px, 2.6vw, 22px);
+      letter-spacing: 0.02em;
+    }
+    .parity-detail {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .tag {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+    }
+    .tag.ok {
+      border-color: #d1fae5;
+      background: #ecfdf5;
+      color: #065f46;
+    }
+    .tag.err {
+      border-color: #fee2e2;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    /* Final input panel */
+    .final-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 680px) {
+      .final-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 420px) {
+      .final-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .final-cell {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      text-align: center;
+    }
+    .toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .toggle button {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 0;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .12s ease, transform .1s ease;
+    }
+    .toggle button.active-0 {
+      background: #eef2ff; /* indigo-50 */
+      border-color: #c7d2fe;
+    }
+    .toggle button.active-1 {
+      background: #f0fdf4; /* green-50 */
+      border-color: #bbf7d0;
+    }
+    .toggle button:active { transform: translateY(1px); }
+
+    .result {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .fade-enter {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    .fade-leave {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title">
+        <h1>Parity Deduction</h1>
+        <p>1〜6にランダムで0/1がセットされています。各ラウンドで最大3つ選んで偶奇のみ確認できます。</p>
+      </div>
+      <div class="status">
+        <div class="chip"><span class="dot"></span>ラウンド <span id="roundChip">1 / 6</span></div>
+        <div class="chip">選択数 <span id="selectCount">0 / 3</span></div>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>番号を選ぶ</h2>
+        <div id="grid" class="grid"></div>
+        <div class="controls">
+          <button id="checkBtn" class="btn">偶奇をチェック</button>
+          <button id="nextBtn" class="btn secondary" disabled>次のラウンドへ</button>
+          <button id="resetBtn" class="btn danger">リセット</button>
+          <span class="hint">最大3つまで選択できます。チェック後は「次のラウンドへ」。</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>偶奇の結果</h2>
+        <div id="parityCard" class="parity-card fade-enter" aria-live="polite">
+          <div>
+            <div id="parityValue" class="parity-value">—</div>
+            <div id="parityDetail" class="parity-detail">まだ選択がありません</div>
+          </div>
+          <div id="parityTag" class="tag">Round 1</div>
+        </div>
+        <ul id="historyList" style="margin-top:12px; font-size:14px; color:#374151;"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>最終回答（6回まで確認後に提出）</h2>
+        <div class="final-grid" id="finalGrid"></div>
+        <div class="result">
+          <button id="submitFinal" class="btn" disabled>回答を提出</button>
+          <button id="revealBtn" class="btn secondary">答えを表示</button>
+          <div id="finalResult" class="chip">結果：—</div>
+        </div>
+        <p class="hint">各番号の0/1を選んでください。提出で正解数と合否を表示します。</p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="hint">データは毎回ランダム生成。スマホ〜PCまでレスポンシブ対応。</div>
+      <div class="hint">Powered by anime.js animations</div>
+    </footer>
+  </div>
+
+  <script>
+    // Game state
+    const MAX_ROUNDS = 6;
+    const MAX_SELECT = 3;
+    let hidden = Array.from({length: 6}, () => Math.random() < 0.5 ? 0 : 1);
+    let round = 1;
+    let selected = new Set();
+    let lockedThisRound = false; // after check, selection is locked until next round
+    let revealed = false; // if answers revealed
+
+    // Elements
+    const gridEl = document.getElementById('grid');
+    const selectCountEl = document.getElementById('selectCount');
+    const roundChipEl = document.getElementById('roundChip');
+    const checkBtn = document.getElementById('checkBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const parityCardEl = document.getElementById('parityCard');
+    const parityValueEl = document.getElementById('parityValue');
+    const parityDetailEl = document.getElementById('parityDetail');
+    const parityTagEl = document.getElementById('parityTag');
+    const finalGridEl = document.getElementById('finalGrid');
+    const submitFinalBtn = document.getElementById('submitFinal');
+    const revealBtn = document.getElementById('revealBtn');
+    const finalResultEl = document.getElementById('finalResult');
+
+    // Build number grid
+    function renderGrid() {
+      gridEl.innerHTML = '';
+      for (let i = 1; i <= 6; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'cell';
+        btn.dataset.idx = i;
+        btn.innerHTML = `
+          <div class="num">${i}</div>
+          <div class="sub">選択</div>
+        `;
+        btn.addEventListener('click', () => onSelect(i, btn));
+        gridEl.appendChild(btn);
+      }
+      updateSelectionUI();
+    }
+
+    // Build final input toggles
+    const finalGuess = Array(6).fill(null); // null/0/1
+    function renderFinalGrid() {
+      finalGridEl.innerHTML = '';
+      for (let i = 1; i <= 6; i++) {
+        const wrap = document.createElement('div');
+        wrap.className = 'final-cell';
+        wrap.innerHTML = `
+          <div class="num">${i}</div>
+          <div class="toggle" data-idx="${i}">
+            <button class="zero-btn">0</button>
+            <button class="one-btn">1</button>
+          </div>
+        `;
+        const toggle = wrap.querySelector('.toggle');
+        const zeroBtn = toggle.querySelector('.zero-btn');
+        const oneBtn = toggle.querySelector('.one-btn');
+
+        zeroBtn.addEventListener('click', () => {
+          finalGuess[i-1] = 0;
+          updateFinalToggleVisual(i, 0);
+          pulse(wrap, '#c7d2fe');
+          maybeEnableSubmit();
+        });
+        oneBtn.addEventListener('click', () => {
+          finalGuess[i-1] = 1;
+          updateFinalToggleVisual(i, 1);
+          pulse(wrap, '#bbf7d0');
+          maybeEnableSubmit();
+        });
+
+        finalGridEl.appendChild(wrap);
+      }
+    }
+    function addHistory(round, picks, label) {
+  const li = document.createElement('li');
+  li.textContent = `Round ${round}: [${picks}] → ${label}`;
+  historyList.appendChild(li);
+
+  // アニメーションでフェードイン
+  anime({
+    targets: li,
+    opacity: [0,1],
+    translateY: [-6,0],
+    easing: 'easeOutQuad',
+    duration: 400
+  });
+}
+
+
+    function updateFinalToggleVisual(i, val) {
+      const toggle = finalGridEl.querySelector(`.toggle[data-idx="${i}"]`);
+      const zeroBtn = toggle.querySelector('.zero-btn');
+      const oneBtn = toggle.querySelector('.one-btn');
+      zeroBtn.classList.remove('active-0', 'active-1');
+      oneBtn.classList.remove('active-0', 'active-1');
+      if (val === 0) {
+        zeroBtn.classList.add('active-0');
+      } else {
+        oneBtn.classList.add('active-1');
+      }
+    }
+
+    function maybeEnableSubmit() {
+      const allChosen = finalGuess.every(v => v === 0 || v === 1);
+      submitFinalBtn.disabled = !allChosen;
+    }
+
+    function onSelect(i, btn) {
+      if (lockedThisRound) return;
+      if (selected.has(i)) {
+        selected.delete(i);
+        btn.classList.remove('selected');
+        ripple(btn, '#3b82f6', 140, 0.15);
+      } else {
+        if (selected.size >= MAX_SELECT) {
+          // Soft feedback
+          shake(btn);
+          return;
+        }
+        selected.add(i);
+        btn.classList.add('selected');
+        ripple(btn, '#3b82f6', 180, 0.25);
+      }
+      updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+      selectCountEl.textContent = `${selected.size} / ${MAX_SELECT}`;
+      // Disable rest if at max
+      const cells = gridEl.querySelectorAll('.cell');
+      cells.forEach(cell => {
+        const idx = Number(cell.dataset.idx);
+        const atMax = selected.size >= MAX_SELECT && !selected.has(idx);
+        cell.classList.toggle('disabled', atMax || lockedThisRound);
+      });
+    }
+
+    function computeParity() {
+      const indices = Array.from(selected).map(i => i-1);
+      const sum = indices.reduce((acc, idx) => acc + hidden[idx], 0);
+      const even = (sum % 2 === 0);
+      return { sum, even, indices };
+    }
+
+    function showParity() {
+  if (selected.size === 0) {
+    parityValueEl.textContent = '—';
+    parityDetailEl.textContent = '番号を選択してください（最大3つ）';
+    return;
+  }
+  const { sum, even, indices } = computeParity();
+  const label = even ? '偶数' : '奇数';
+  parityValueEl.textContent = label;
+  const picks = indices.map(i => i+1).join(', ');
+  parityDetailEl.textContent = `選択: [${picks}] の合計は ${sum} → ${label}`;
+  parityTagEl.textContent = `Round ${round}`;
+  flipCard(parityCardEl);
+
+  // ★履歴に追加（後述）
+  addHistory(round, picks, label);
+
+  // ★ここを変更：チェック後すぐ次ラウンドへ
+  lockedThisRound = true;
+  checkBtn.disabled = true;
+  nextBtn.disabled = true; // ←不要になるので常に無効化
+  updateSelectionUI();
+
+  // 自動で次ラウンドへ
+  setTimeout(() => nextRound(), 800); // 少し待ってから進むとアニメが見やすい
+}
+
+
+    function nextRound() {
+      if (round >= MAX_ROUNDS) {
+        pulse(parityCardEl, '#ef4444');
+        return;
+      }
+      round += 1;
+      roundChipEl.textContent = `${round} / ${MAX_ROUNDS}`;
+      selected.clear();
+      lockedThisRound = false;
+      checkBtn.disabled = false;
+      nextBtn.disabled = true;
+      parityValueEl.textContent = '—';
+      parityDetailEl.textContent = '番号を選択してください（最大3つ）';
+      parityTagEl.textContent = `Round ${round}`;
+      fadeIn(parityCardEl);
+      updateSelectionUI();
+      // Gentle hint animation on grid
+      gridEl.querySelectorAll('.cell').forEach(c => {
+        c.classList.remove('selected', 'disabled');
+      });
+      wave(gridEl.querySelectorAll('.cell'));
+    }
+
+    function resetAll() {
+      hidden = Array.from({length: 6}, () => Math.random() < 0.5 ? 0 : 1);
+      round = 1;
+      selected.clear();
+      lockedThisRound = false;
+      revealed = false;
+      roundChipEl.textContent = `${round} / ${MAX_ROUNDS}`;
+      selectCountEl.textContent = `0 / ${MAX_SELECT}`;
+      checkBtn.disabled = false;
+      nextBtn.disabled = true;
+      submitFinalBtn.disabled = true;
+      finalResultEl.textContent = '結果：—';
+      renderGrid();
+      renderFinalGrid();
+      parityValueEl.textContent = '—';
+      parityDetailEl.textContent = '番号を選択してください（最大3つ）';
+      parityTagEl.textContent = `Round ${round}`;
+      fadeIn(parityCardEl);
+      pulse(gridEl, '#e5e7eb');
+    }
+
+    function submitFinal() {
+      const correctCount = finalGuess.reduce((acc, v, i) => acc + (v === hidden[i] ? 1 : 0), 0);
+      const pass = correctCount === 6;
+      finalResultEl.textContent = `結果：${correctCount} / 6 正解（${pass ? '全問正解！' : '不正解あり'}）`;
+      // Confetti-ish pulse
+      pulse(finalResultEl, pass ? '#10b981' : '#ef4444');
+    }
+
+    function revealAnswers() {
+      revealed = !revealed;
+      const icon = revealed ? '答えを隠す' : '答えを表示';
+      revealBtn.textContent = icon;
+      // Update cells with subtle background indicators if revealed
+      gridEl.querySelectorAll('.cell').forEach(cell => {
+        const i = Number(cell.dataset.idx)-1;
+        cell.style.background = revealed
+          ? (hidden[i] === 1 ? 'linear-gradient(0deg, #f0fdf4 0%, #ffffff 60%)' : 'linear-gradient(0deg, #eef2ff 0%, #ffffff 60%)')
+          : '#fff';
+      });
+      // Also preview in final grid toggles by setting temporary hints
+      finalGridEl.querySelectorAll('.final-cell').forEach((wrap, idx) => {
+        if (revealed) {
+          wrap.style.boxShadow = 'inset 0 0 0 2px ' + (hidden[idx] ? '#bbf7d0' : '#c7d2fe');
+        } else {
+          wrap.style.boxShadow = 'none';
+        }
+      });
+      pulse(revealBtn, revealed ? '#10b981' : '#e5e7eb');
+    }
+
+    // Animations with anime.js
+    function ripple(el, color = '#3b82f6', radius = 120, opacity = 0.25) {
+      const circle = document.createElement('span');
+      circle.style.position = 'absolute';
+      circle.style.left = '50%';
+      circle.style.top = '50%';
+      circle.style.width = '8px';
+      circle.style.height = '8px';
+      circle.style.borderRadius = '50%';
+      circle.style.background = color;
+      circle.style.transform = 'translate(-50%, -50%)';
+      circle.style.opacity = opacity;
+      el.appendChild(circle);
+      anime({
+        targets: circle,
+        width: radius,
+        height: radius,
+        opacity: 0,
+        easing: 'easeOutQuad',
+        duration: 500,
+        complete: () => circle.remove()
+      });
+    }
+
+    function pulse(el, color = '#3b82f6') {
+      anime({
+        targets: el,
+        boxShadow: [
+          { value: `0 0 0 0 ${hexToRgba(color, 0.0)}` },
+          { value: `0 8px 24px 0 ${hexToRgba(color, 0.35)}` }
+        ],
+        easing: 'easeOutQuad',
+        direction: 'alternate',
+        duration: 450
+      });
+    }
+
+    function shake(el) {
+      anime({
+        targets: el,
+        translateX: [{value: -4}, {value: 4}, {value: -3}, {value: 3}, {value: 0}],
+        easing: 'easeInOutQuad',
+        duration: 280
+      });
+    }
+
+    function flipCard(el) {
+      anime({
+        targets: el,
+        rotateX: [{value: 0}, {value: 180}, {value: 0}],
+        easing: 'easeInOutCubic',
+        duration: 600
+      });
+    }
+
+    function fadeIn(el) {
+      el.classList.add('fade-enter');
+      anime({
+        targets: el,
+        opacity: [0,1],
+        translateY: [8,0],
+        easing: 'easeOutQuad',
+        duration: 360,
+        complete: () => el.classList.remove('fade-enter')
+      });
+    }
+
+    function wave(nodes) {
+      anime({
+        targets: nodes,
+        translateY: [
+          { value: -3, duration: 180, easing: 'easeOutQuad' },
+          { value: 0, duration: 220, easing: 'easeOutQuad' }
+        ],
+        delay: anime.stagger(40)
+      });
+    }
+
+    function hexToRgba(hex, alpha){
+      const h = hex.replace('#','');
+      const bigint = parseInt(h, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Events
+    checkBtn.addEventListener('click', () => {
+      if (selected.size === 0) {
+        shake(checkBtn);
+        return;
+      }
+      showParity();
+    });
+    nextBtn.addEventListener('click', () => nextRound());
+    resetBtn.addEventListener('click', () => resetAll());
+    submitFinalBtn.addEventListener('click', () => submitFinal());
+    revealBtn.addEventListener('click', () => revealAnswers());
+
+    // Init
+    renderGrid();
+    renderFinalGrid();
+    fadeIn(parityCardEl);
+  </script>
+</body>
+</html>
